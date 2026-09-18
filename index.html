@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#4f8fc9">
+<meta name="description" content="A minimalist live world clock and weather dashboard.">
+<title>Weather Clock</title>
+<style>
+:root{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text",Inter,Arial,sans-serif;color:#fff}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:#111}
+body{min-height:100vh}
+button,select{font:inherit}
+.app{min-height:100vh;padding:18px 16px 30px;transition:background 1s ease;background:linear-gradient(155deg,#397bc7 0%,#8ec8ee 55%,#dcecf5 100%)}
+.app.night{background:linear-gradient(155deg,#07152f,#183d68 55%,#334b68)}
+.app.rain{background:linear-gradient(155deg,#31475c,#60798b 55%,#9eabb3)}
+.app.sunny{background:linear-gradient(155deg,#277fc5,#6ec6ed 55%,#f4c875)}
+.app.cloudy{background:linear-gradient(155deg,#506b80,#91a7b4 55%,#cbd3d6)}
+.wrap{width:min(940px,100%);margin:auto}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.loc{min-width:0}.city{font-size:17px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.sub{font-size:12px;color:#e8f1f5;margin-top:3px}
+select{max-width:155px;border:1px solid rgba(255,255,255,.22);background:rgba(0,0,0,.14);color:#fff;border-radius:14px;padding:10px 12px;outline:none;backdrop-filter:blur(12px)}
+select option{color:#111;background:#fff}
+.hero{text-align:center;padding:43px 0 27px}
+.clock{font-family:"Arial Rounded MT Bold","Trebuchet MS",sans-serif;font-size:clamp(54px,13vw,104px);font-weight:800;letter-spacing:-5px;line-height:.95;text-shadow:0 2px 18px rgba(0,0,0,.08)}
+.sec{font-size:.4em;letter-spacing:-1px;opacity:.76;margin-left:2px}
+.date{font-size:15px;color:rgba(255,255,255,.78);margin-top:13px}
+.weather-icon{font-size:62px;margin:19px 0 2px;line-height:1}.temp{font-size:53px;font-weight:650;letter-spacing:-3px;margin-top:8px}.condition{font-size:18px;color:rgba(255,255,255,.85)}.feels{font-size:13px;color:rgba(255,255,255,.66);margin-top:5px}
+.card{margin-top:13px;padding:17px;border-radius:24px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.19);box-shadow:0 8px 30px rgba(0,0,0,.04);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+.label{text-transform:uppercase;letter-spacing:1px;font-size:11px;color:rgba(255,255,255,.64);font-weight:750;margin-bottom:14px}
+.hours{display:flex;gap:17px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}.hours::-webkit-scrollbar{display:none}
+.hour{min-width:54px;text-align:center}.ht{font-size:12px;color:rgba(255,255,255,.72);margin-bottom:9px}.hi{font-size:23px;height:30px}.hp{font-size:11px;color:#c9edff;margin-top:6px}.hv{font-size:15px;font-weight:650;margin-top:8px}
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-top:13px}.metric{padding:13px 8px;text-align:center;background:rgba(0,0,0,.08);border-radius:17px}.mi{font-size:20px}.mk{font-size:10px;color:rgba(255,255,255,.64);margin-top:5px}.mv{font-size:14px;font-weight:650;margin-top:3px}
+.aqrow{display:flex;justify-content:space-between;align-items:center;gap:15px}.aqnum{font-size:33px;font-weight:750}.aqdesc{font-size:12px;color:rgba(255,255,255,.7);margin-top:2px}.aqright{text-align:right;font-size:14px;font-weight:650}.aqright small{display:block;font-size:12px;color:rgba(255,255,255,.68);font-weight:400;margin-top:3px}
+.error{display:none;text-align:center;padding:12px;border-radius:15px;background:rgba(130,0,0,.18);font-size:13px;margin-top:12px}.note{text-align:center;color:rgba(255,255,255,.46);font-size:10px;margin-top:15px}
+@media(max-width:540px){.metrics{grid-template-columns:repeat(2,1fr)}.hero{padding-top:34px}.clock{letter-spacing:-4px}.app{padding-left:13px;padding-right:13px}}
+@media(prefers-reduced-motion:reduce){.app{transition:none}}
+</style>
+</head>
+<body>
+<main id="app" class="app">
+<div class="wrap">
+<header class="top">
+<div class="loc"><div id="city" class="city">Finding your location…</div><div id="sub" class="sub">Live weather</div></div>
+<select id="zone" aria-label="Choose time zone">
+<option value="local">Local time</option><option value="Asia/Kolkata">India</option><option value="America/New_York">New York</option><option value="Europe/London">London</option><option value="Europe/Paris">Paris</option><option value="Asia/Dubai">Dubai</option><option value="Asia/Tokyo">Tokyo</option><option value="Australia/Sydney">Sydney</option><option value="America/Los_Angeles">Los Angeles</option><option value="Asia/Singapore">Singapore</option>
+</select>
+</header>
+
+<section class="hero" aria-live="polite">
+<div id="clock" class="clock">--:--<span class="sec">:--</span></div>
+<div id="date" class="date">Loading…</div>
+<div id="weatherIcon" class="weather-icon">☁️</div>
+<div id="temp" class="temp">--°</div>
+<div id="condition" class="condition">Loading weather…</div>
+<div id="feels" class="feels"></div>
+</section>
+
+<div id="error" class="error"></div>
+
+<section class="card">
+<div class="label">Next 24 hours</div>
+<div id="hours" class="hours" aria-label="Hourly forecast"></div>
+</section>
+
+<section class="metrics">
+<div class="metric"><div class="mi">💧</div><div class="mk">HUMIDITY</div><div id="humidity" class="mv">--%</div></div>
+<div class="metric"><div class="mi">💨</div><div class="mk">WIND</div><div id="wind" class="mv">-- km/h</div></div>
+<div class="metric"><div class="mi">☀️</div><div class="mk">UV INDEX</div><div id="uv" class="mv">--</div></div>
+<div class="metric"><div class="mi">☔</div><div class="mk">RAIN</div><div id="rain" class="mv">--%</div></div>
+</section>
+
+<section class="card">
+<div class="label">Air quality</div>
+<div class="aqrow">
+<div><div id="aqi" class="aqnum">--</div><div id="aqLabel" class="aqdesc">Air Quality Index</div></div>
+<div class="aqright"><span id="pm25">PM2.5 -- μg/m³</span><small id="pm10">PM10 -- μg/m³</small></div>
+</div>
+</section>
+<div class="note">Weather & air-quality data by Open-Meteo</div>
+</div>
+
+<script>
+(()=>{"use strict";
+const $=id=>document.getElementById(id), root=$("app");
+const icons={0:"☀️",1:"🌤️",2:"⛅",3:"☁️",45:"🌫️",48:"🌫️",51:"🌦️",53:"🌦️",55:"🌧️",56:"🌧️",57:"🌧️",61:"🌦️",63:"🌧️",65:"🌧️",66:"🌧️",67:"🌧️",71:"🌨️",73:"🌨️",75:"❄️",77:"❄️",80:"🌦️",81:"🌧️",82:"⛈️",85:"🌨️",86:"❄️",95:"⛈️",96:"⛈️",99:"⛈️"};
+const desc={0:"Clear sky",1:"Mainly clear",2:"Partly cloudy",3:"Overcast",45:"Fog",48:"Fog",51:"Light drizzle",53:"Drizzle",55:"Heavy drizzle",56:"Freezing drizzle",57:"Freezing drizzle",61:"Light rain",63:"Rain",65:"Heavy rain",66:"Freezing rain",67:"Heavy freezing rain",71:"Light snow",73:"Snow",75:"Heavy snow",77:"Snow grains",80:"Rain showers",81:"Rain showers",82:"Heavy showers",85:"Snow showers",86:"Heavy snow showers",95:"Thunderstorm",96:"Thunderstorm",99:"Thunderstorm"};
+let weather=null,air=null,localZone="Asia/Kolkata";
+
+function clock(){
+ const z=$("zone").value==="local"?localZone:$("zone").value, now=new Date();
+ const parts=new Intl.DateTimeFormat("en-GB",{hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false,timeZone:z}).formatToParts(now);
+ const get=t=>(parts.find(x=>x.type===t)||{}).value||"--";
+ $("clock").innerHTML=get("hour")+":"+get("minute")+'<span class="sec">:'+get("second")+"</span>";
+ $("date").textContent=new Intl.DateTimeFormat("en-US",{weekday:"long",month:"long",day:"numeric",year:"numeric",timeZone:z}).format(now);
+}
+
+function theme(code,day){
+ root.classList.remove("night","rain","sunny","cloudy");
+ if(!day)root.classList.add("night"); else if(code>=51)root.classList.add("rain"); else if(code<=1)root.classList.add("sunny"); else root.classList.add("cloudy");
+}
+
+function render(){
+ if(!weather)return;
+ const c=weather.current,h=weather.hourly;
+ const nowIndex=Math.max(0,h.time.findIndex(t=>new Date(t)>=new Date()));
+ $("temp").textContent=Math.round(c.temperature_2m)+"°";
+ $("condition").textContent=desc[c.weather_code]||"Weather";
+ $("feels").textContent="Feels like "+Math.round(c.apparent_temperature)+"°";
+ $("weatherIcon").textContent=icons[c.weather_code]||"🌤️";
+ $("humidity").textContent=Math.round(c.relative_humidity_2m)+"%";
+ $("wind").textContent=Math.round(c.wind_speed_10m)+" km/h";
+ $("uv").textContent=Number(h.uv_index[nowIndex]??0).toFixed(1);
+ $("rain").textContent=Math.round(h.precipitation_probability[nowIndex]??0)+"%";
+ theme(c.weather_code,!!c.is_day);
+
+ let out="";
+ for(let j=nowIndex;j<Math.min(nowIndex+24,h.time.length);j++){
+   const d=new Date(h.time[j]);
+   const tm=new Intl.DateTimeFormat("en-US",{hour:"numeric",timeZone:weather.timezone}).format(d).replace(" ","");
+   out+='<div class="hour"><div class="ht">'+tm+'</div><div class="hi">'+(icons[h.weather_code[j]]||"🌤️")+'</div><div class="hp">'+Math.round(h.precipitation_probability[j]??0)+'%</div><div class="hv">'+Math.round(h.temperature_2m[j])+"°</div></div>";
+ }
+ $("hours").innerHTML=out;
+}
+
+function renderAir(){
+ if(!air||!air.current)return;
+ const a=air.current;
+ const score=a.us_aqi==null?null:Math.round(a.us_aqi);
+ $("aqi").textContent=score==null?"--":score;
+ $("pm25").textContent="PM2.5 "+(a.pm2_5==null?"--":Math.round(a.pm2_5))+" μg/m³";
+ $("pm10").textContent="PM10 "+(a.pm10==null?"--":Math.round(a.pm10))+" μg/m³";
+ $("aqLabel").textContent=score==null?"Air Quality Index":score<50?"Good":score<100?"Moderate":score<150?"Unhealthy for sensitive groups":score<200?"Unhealthy":"Very unhealthy";
+}
+
+async function load(lat,lon){
+ try{
+  $("sub").textContent="Updating weather…";
+  const current="temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,is_day";
+  const hourly="temperature_2m,precipitation_probability,weather_code,uv_index";
+  const url="https://api.open-meteo.com/v1/forecast?latitude="+encodeURIComponent(lat)+"&longitude="+encodeURIComponent(lon)+"&current="+current+"&hourly="+hourly+"&forecast_hours=48&timezone=auto";
+  const r=await fetch(url,{cache:"no-store"}); if(!r.ok)throw new Error("weather");
+  weather=await r.json(); localZone=weather.timezone||"Asia/Kolkata";
+  $("city").textContent="Your location";
+  $("sub").textContent="Live weather • "+localZone.replaceAll("_"," ");
+  clock(); render();
+
+  const aqUrl="https://air-quality-api.open-meteo.com/v1/air-quality?latitude="+encodeURIComponent(lat)+"&longitude="+encodeURIComponent(lon)+"&current=pm10,pm2_5,us_aqi&timezone=auto";
+  const ar=await fetch(aqUrl,{cache:"no-store"}); if(ar.ok){air=await ar.json();renderAir()}
+  $("error").style.display="none";
+ }catch(e){
+  $("error").textContent="Weather data could not be loaded. Check your internet connection and refresh.";
+  $("error").style.display="block"; $("sub").textContent="Weather unavailable";
+ }
+}
+
+function fallback(){
+ // Approximate Jaipur fallback only if the visitor declines location permission.
+ load(26.9124,75.7873);
+ $("city").textContent="Jaipur (fallback)";
+}
+
+$("zone").addEventListener("change",clock);
+setInterval(clock,250);
+if(navigator.geolocation){
+ navigator.geolocation.getCurrentPosition(
+  p=>load(p.coords.latitude,p.coords.longitude),
+  ()=>fallback(),
+  {enableHighAccuracy:false,timeout:10000,maximumAge:300000}
+ );
+}else fallback();
+})();
+</script>
+</main>
+</body>
+</html>
